@@ -101,7 +101,7 @@ df["Batter Hand"] = np.random.choice(["L", "R"], len(df))
 
 # Pitcher ISO + weather boost
 df["Pitcher ISO"] = df["Pitcher Hand"].apply(lambda x: np.random.uniform(0.170, 0.230) if x == "L" else np.random.uniform(0.160, 0.210))
-df["Pitcher HR/9"] = df["Pitcher HR/9"].fillna(np.random.uniform(0.8, 2.2, len(df)))
+df["Pitcher HR/9"] = df["Pitcher HR/9"].where(df["Pitcher HR/9"].notna(), np.random.uniform(0.8, 2.2, len(df)))
 df["Ballpark HR Factor"] = np.random.uniform(0.90, 1.20, len(df)).round(2)
 df["Wind Boost"] = np.random.uniform(-0.3, 0.4, len(df)).round(2)
 df["Weather Boost"] = df["Ballpark HR Factor"] * 0.5 + df["Wind Boost"] * 0.5
