@@ -72,9 +72,9 @@ df = df.merge(batter_metrics, on="Player", how="left")
 
 # Fill missing values with fallback estimates
 np.random.seed(42)
-df["Barrel %"] = df["Barrel %"].fillna(np.random.randint(5, 18, len(df)))
-df["Exit Velo"] = df["Exit Velo"].fillna(np.random.randint(87, 95, len(df)))
-df["Hard Hit %"] = df["Hard Hit %"].fillna(np.random.randint(30, 55, len(df)))
+df["Barrel %"] = df["Barrel %"].where(df["Barrel %"].notna(), np.random.randint(5, 18, len(df)))
+df["Exit Velo"] = df["Exit Velo"].where(df["Exit Velo"].notna(), np.random.randint(87, 95, len(df)))
+df["Hard Hit %"] = df["Hard Hit %"].where(df["Hard Hit %"].notna(), np.random.randint(30, 55, len(df)))
 df["HR/FB %"] = np.random.randint(5, 25, len(df))  # still estimated for now
 df["Pitcher HR/9"] = np.random.uniform(0.8, 2.2, len(df)).round(1)
 df["Pitcher ISO"] = np.random.uniform(.150, .250, len(df)).round(3)
