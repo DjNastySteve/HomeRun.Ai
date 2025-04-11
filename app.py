@@ -84,7 +84,7 @@ iso_lhb = np.random.uniform(.150, .250, len(df))  # batter is left
 iso_rhb = np.random.uniform(.150, .250, len(df))  # batter is right
 
 # For now, just assign generic ISO allowed based on pitcher handedness
-df["Pitcher ISO"] = df["Pitcher Hand"].apply(lambda x: np.random.uniform(0.170, 0.230) if x == "L" else np.random.uniform(0.160, 0.210))
+# This will now be placed correctly after df["Pitcher Hand"] is assigned
 
 df["Pitcher Hand"] = np.random.choice(['L', 'R'], len(df))
 
