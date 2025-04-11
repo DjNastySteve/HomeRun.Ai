@@ -6,11 +6,11 @@ from datetime import datetime
 import numpy as np
 
 st.set_page_config(page_title="Home Run A.I. Dashboard", layout="wide")
-st.title("🏟️ Home Run A.I. Dashboard (with Real Batter Stats)")
+st.title("🏟️ Home Run A.I. Dashboard (Leaderboard Edition)")
 
 today = datetime.now().strftime('%Y-%m-%d')
 
-# Get today's MLB game IDs
+# Get today's MLB games
 games_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
 games_data = requests.get(games_url).json()
 game_ids = [game['gamePk'] for date in games_data['dates'] for game in date['games']]
@@ -19,28 +19,23 @@ if not game_ids:
     st.warning("No MLB games scheduled today.")
     st.stop()
 
-# Load batter stat file (hosted locally or via GitHub in production)
+# Load batter stats
 stat_url = "https://raw.githubusercontent.com/DjNastySteve/HomeRun.Ai/main/statcast_2024.csv"
-try:
-    stat_df = pd.read_csv(stat_url)
-    stat_df["player_name_clean"] = stat_df["last_name, first_name"].apply(lambda x: f"{x.split(', ')[1]} {x.split(', ')[0]}")
-    batter_metrics = stat_df[[
-        "player_name_clean", "barrel_batted_rate", "avg_best_speed", "hard_hit_percent"
-    ]].copy()
-    batter_metrics.rename(columns={
-        "player_name_clean": "Player",
-        "barrel_batted_rate": "Barrel %",
-        "avg_best_speed": "Exit Velo",
-        "hard_hit_percent": "Hard Hit %"
-    }, inplace=True)
-    batter_metrics["Barrel %"] = batter_metrics["Barrel %"].round(0).astype(int)
-    batter_metrics["Exit Velo"] = batter_metrics["Exit Velo"].round(0).astype(int)
-    batter_metrics["Hard Hit %"] = batter_metrics["Hard Hit %"].round(0).astype(int)
-except:
-    st.error("Could not load statcast data.")
-    st.stop()
+stat_df = pd.read_csv(stat_url)
+stat_df["player_name_clean"] = stat_df["last_name, first_name"].apply(lambda x: f"{x.split(', ')[1]} {x.split(', ')[0]}")
+batter_metrics = stat_df[[
+    "player_name_clean", "barrel_batted_rate", "avg_best_speed", "hard_hit_percent"
+]].copy()
+batter_metrics.rename(columns={
+    "player_name_clean": "Player",
+    "barrel_batted_rate": "Barrel %",
+    "avg_best_speed": "Exit Velo",
+    "hard_hit_percent": "Hard Hit %"
+}, inplace=True)
+batter_metrics["Barrel %"] = batter_metrics["Barrel %"].round(0).astype(int)
+batter_metrics["Exit Velo"] = batter_metrics["Exit Velo"].round(0).astype(int)
+batter_metrics["Hard Hit %"] = batter_metrics["Hard Hit %"].round(0).astype(int)
 
-# Collect player data from MLB feed
 lineup_data = []
 for game_id in game_ids:
     feed_url = f"https://statsapi.mlb.com/api/v1.1/game/{game_id}/feed/live"
@@ -66,70 +61,66 @@ for game_id in game_ids:
             })
 
 df = pd.DataFrame(lineup_data).drop_duplicates(subset=["Player", "Team", "GameID"])
-
-# Merge real batter metrics
 df = df.merge(batter_metrics, on="Player", how="left")
 
-# Fill missing values with fallback estimates
-np.random.seed(42)
 df["Barrel %"] = df["Barrel %"].where(df["Barrel %"].notna(), np.random.randint(5, 18, len(df)))
 df["Exit Velo"] = df["Exit Velo"].where(df["Exit Velo"].notna(), np.random.randint(87, 95, len(df)))
 df["Hard Hit %"] = df["Hard Hit %"].where(df["Hard Hit %"].notna(), np.random.randint(30, 55, len(df)))
-df["HR/FB %"] = np.random.randint(5, 25, len(df))  # still estimated for now
-df["Pitcher HR/9"] = np.random.uniform(0.8, 2.2, len(df)).round(1)
+df["HR/FB %"] = np.random.randint(5, 25, len(df))
 
-# Simulated ISO Allowed by Pitcher Hand (placeholder for future API split logic)
-# You can replace this with real splits using StatsAPI if desired
-iso_lhb = np.random.uniform(.150, .250, len(df))  # batter is left
-iso_rhb = np.random.uniform(.150, .250, len(df))  # batter is right
+# Pull pitcher stats
+pitcher_stats = {}
+for pid in df["PitcherID"].dropna().unique():
+    try:
+        pid_int = int(pid)
+        stats_url = f"https://statsapi.mlb.com/api/v1/people/{pid_int}/stats?stats=season&group=pitching"
+        profile_url = f"https://statsapi.mlb.com/api/v1/people/{pid_int}"
+        stats_data = requests.get(stats_url).json()
+        profile_data = requests.get(profile_url).json()
 
-# For now, just assign generic ISO allowed based on pitcher handedness
-# This will now be placed correctly after df["Pitcher Hand"] is assigned
+        hr_per_9 = None
+        if stats_data.get("stats"):
+            splits = stats_data["stats"][0].get("splits", [])
+            if splits:
+                hr_per_9 = float(splits[0]["stat"].get("hrPer9", None))
 
-df["Pitcher Hand"] = np.random.choice(['L', 'R'], len(df))
+        handedness = profile_data.get("people", [{}])[0].get("pitchHand", {}).get("code", "R")
 
-def calc_ai_rating(row):
-    power = (row['Barrel %'] * 0.4 + row['Exit Velo'] * 0.2 + row['Hard Hit %'] * 0.2 + row['HR/FB %'] * 0.2) / 10
-    weakness = row['Pitcher HR/9'] * 0.4 + row['Pitcher ISO'] * 10 * 0.3
-    return round(min(power * 0.5 + weakness * 0.5, 10), 1)
+        pitcher_stats[pid] = {
+            "HR/9": round(hr_per_9, 2) if hr_per_9 is not None else None,
+            "Handedness": handedness
+        }
+    except:
+        pitcher_stats[pid] = {"HR/9": None, "Handedness": "R"}
 
+df["Pitcher HR/9"] = df["PitcherID"].apply(lambda x: pitcher_stats.get(x, {}).get("HR/9", np.random.uniform(0.8, 2.2)))
+df["Pitcher Hand"] = df["PitcherID"].apply(lambda x: pitcher_stats.get(x, {}).get("Handedness", "R"))
 
-# Final fallback to prevent KeyError on 'Pitcher ISO'
-if "Pitcher ISO" not in df.columns:
-    df["Pitcher ISO"] = np.random.uniform(0.160, 0.230, len(df)).round(3)
-else:
-    df["Pitcher ISO"] = df["Pitcher ISO"].fillna(np.random.uniform(0.160, 0.230, len(df))).round(3)
+# Batter handedness (simulated)
+df["Batter Hand"] = np.random.choice(["L", "R"], len(df))
 
-df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
-
-# 🌤 Simulate weather and ballpark HR factors
+# Pitcher ISO + weather boost
+df["Pitcher ISO"] = df["Pitcher Hand"].apply(lambda x: np.random.uniform(0.170, 0.230) if x == "L" else np.random.uniform(0.160, 0.210))
 df["Ballpark HR Factor"] = np.random.uniform(0.90, 1.20, len(df)).round(2)
 df["Wind Boost"] = np.random.uniform(-0.3, 0.4, len(df)).round(2)
 df["Weather Boost"] = df["Ballpark HR Factor"] * 0.5 + df["Wind Boost"] * 0.5
 
-# Apply weather boost to A.I. Rating
+# A.I. rating
+def calc_ai_rating(row):
+    power = (row['Barrel %'] * 0.4 + row['Exit Velo'] * 0.2 + row['Hard Hit %'] * 0.2 + row['HR/FB %'] * 0.2) / 10
+    weakness = row['Pitcher HR/9'] * 0.4 + row['Pitcher ISO'] * 10 * 0.3
+    return round(min(power * 0.5 + weakness * 0.5, 10), 2)
+
+df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
 df["A.I. Rating"] = df["A.I. Rating"] + df["Weather Boost"]
 df["A.I. Rating"] = df["A.I. Rating"].clip(upper=10).round(2)
 
-df = df.sort_values(by="A.I. Rating", ascending=False)
-
-st.success(f"Showing projected starters with real metrics for {len(df)} players on {today}.")
-
-# Add filtering controls
+# Filters
 teams = df['Team'].dropna().unique().tolist()
 teams.sort()
 min_rating = st.slider("Minimum A.I. Rating", 0.0, 10.0, 5.0, 0.5)
 selected_teams = st.multiselect("Filter by Team", teams, default=teams)
-
-# Apply filters
-filtered_df = df[(df["A.I. Rating"] >= min_rating) & (df["Team"].isin(selected_teams))]
-
-
-# Add handedness matchup filter
-handed_matchups_only = st.checkbox("Show only strong handedness matchups (e.g. RHB vs LHP)", value=False)
-
-# Simulate batter handedness for demo purposes (replace with real source if available)
-df["Batter Hand"] = np.random.choice(["L", "R"], len(df))
+handed_matchups_only = st.checkbox("Show only strong handedness matchups", value=False)
 
 if handed_matchups_only:
     df = df[
@@ -137,8 +128,15 @@ if handed_matchups_only:
         ~((df["Batter Hand"] == "L") & (df["Pitcher Hand"] == "L"))
     ]
 
+filtered_df = df[(df["A.I. Rating"] >= min_rating) & (df["Team"].isin(selected_teams))]
+
+# 🥇 Top 5 leaderboard
+st.subheader("🔥 Top 5 Projected Home Run Picks")
+top5 = filtered_df.sort_values(by="A.I. Rating", ascending=False).head(5)[[
+    "Player", "Team", "A.I. Rating", "Barrel %", "Exit Velo", "Weather Boost"
+]]
+st.table(top5.reset_index(drop=True))
+
+# Final results
 st.dataframe(filtered_df.style.background_gradient(cmap="YlGn"))
 st.download_button("📥 Download as CSV", filtered_df.to_csv(index=False), "home_run_ai_filtered.csv", "text/csv")
-
-
-
