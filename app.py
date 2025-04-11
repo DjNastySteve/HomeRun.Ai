@@ -7,12 +7,12 @@ import numpy as np
 
 st.set_page_config(page_title="Home Run A.I. Dashboard", layout="wide")
 
-st.title("🏟️ Home Run A.I. Dashboard (Automated - MLB StatsAPI)")
+st.title("🏟️ Home Run A.I. Dashboard (w/ Team Names + Starters Only)")
 st.markdown("""
-This dashboard pulls **today's lineups** and **starting pitchers** directly from the MLB StatsAPI.  
-It calculates a home run likelihood score based on barrel %, exit velo, hard hit %, HR/FB %, and pitcher weakness.
+This version shows **only projected starting hitters** (batting order 1–9)  
+and displays each player's **full team name**.
 
-🔄 Data refreshes every time the app loads. No uploads. No CSVs.
+All data is pulled live from the MLB StatsAPI and simulated for now — real stat integration is next.
 """)
 
 today = datetime.now().strftime('%Y-%m-%d')
@@ -36,8 +36,8 @@ for game_id in game_ids:
     box = data.get("liveData", {}).get("boxscore", {})
 
     for side in ["home", "away"]:
-        team = game_info.get(side, {}).get("name", "")
-        lineup = box.get("teams", {}).get(side, {}).get("battingOrder", [])
+        team_name = game_info.get(side, {}).get("name", "")
+        lineup = box.get("teams", {}).get(side, {}).get("battingOrder", [])[:9]  # starters only
         players = box.get("teams", {}).get(side, {}).get("players", {})
         pitcher_list = box.get("teams", {}).get(side, {}).get("pitchers", [])
         pitcher_id = pitcher_list[0] if pitcher_list else None
@@ -47,7 +47,7 @@ for game_id in game_ids:
             name = player.get("person", {}).get("fullName", "")
             lineup_data.append({
                 "Player": name,
-                "Team": team,
+                "Team": team_name,
                 "GameID": game_id,
                 "PitcherID": pitcher_id
             })
@@ -71,5 +71,5 @@ def calc_ai_rating(row):
 df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
 df = df.sort_values(by="A.I. Rating", ascending=False)
 
-st.success(f"Data pulled for {len(df)} batters in {len(game_ids)} games on {today}.")
+st.success(f"Pulled projected starters for {len(df)} players in {len(game_ids)} games on {today}.")
 st.dataframe(df.style.background_gradient(cmap="YlGn"))
