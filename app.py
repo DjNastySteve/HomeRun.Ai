@@ -77,7 +77,15 @@ df["Exit Velo"] = df["Exit Velo"].where(df["Exit Velo"].notna(), np.random.randi
 df["Hard Hit %"] = df["Hard Hit %"].where(df["Hard Hit %"].notna(), np.random.randint(30, 55, len(df)))
 df["HR/FB %"] = np.random.randint(5, 25, len(df))  # still estimated for now
 df["Pitcher HR/9"] = np.random.uniform(0.8, 2.2, len(df)).round(1)
-df["Pitcher ISO"] = np.random.uniform(.150, .250, len(df)).round(3)
+
+# Simulated ISO Allowed by Pitcher Hand (placeholder for future API split logic)
+# You can replace this with real splits using StatsAPI if desired
+iso_lhb = np.random.uniform(.150, .250, len(df))  # batter is left
+iso_rhb = np.random.uniform(.150, .250, len(df))  # batter is right
+
+# For now, just assign generic ISO allowed based on pitcher handedness
+df["Pitcher ISO"] = df["Pitcher Hand"].apply(lambda x: np.random.uniform(0.170, 0.230) if x == "L" else np.random.uniform(0.160, 0.210))
+
 df["Pitcher Hand"] = np.random.choice(['L', 'R'], len(df))
 
 def calc_ai_rating(row):
@@ -99,5 +107,19 @@ selected_teams = st.multiselect("Filter by Team", teams, default=teams)
 # Apply filters
 filtered_df = df[(df["A.I. Rating"] >= min_rating) & (df["Team"].isin(selected_teams))]
 
+
+# Add handedness matchup filter
+handed_matchups_only = st.checkbox("Show only strong handedness matchups (e.g. RHB vs LHP)", value=False)
+
+# Simulate batter handedness for demo purposes (replace with real source if available)
+df["Batter Hand"] = np.random.choice(["L", "R"], len(df))
+
+if handed_matchups_only:
+    filtered_df = filtered_df[
+        ~((filtered_df["Batter Hand"] == "R") & (filtered_df["Pitcher Hand"] == "R")) &
+        ~((filtered_df["Batter Hand"] == "L") & (filtered_df["Pitcher Hand"] == "L"))
+    ]
+
 st.dataframe(filtered_df.style.background_gradient(cmap="YlGn"))
+
 
