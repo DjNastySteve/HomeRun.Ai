@@ -132,9 +132,9 @@ handed_matchups_only = st.checkbox("Show only strong handedness matchups (e.g. R
 df["Batter Hand"] = np.random.choice(["L", "R"], len(df))
 
 if handed_matchups_only:
-    filtered_df = filtered_df[
-        ~((filtered_df["Batter Hand"] == "R") & (filtered_df["Pitcher Hand"] == "R")) &
-        ~((filtered_df["Batter Hand"] == "L") & (filtered_df["Pitcher Hand"] == "L"))
+    df = df[
+        ~((df["Batter Hand"] == "R") & (df["Pitcher Hand"] == "R")) &
+        ~((df["Batter Hand"] == "L") & (df["Pitcher Hand"] == "L"))
     ]
 
 st.dataframe(filtered_df.style.background_gradient(cmap="YlGn"))
