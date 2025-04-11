@@ -89,4 +89,15 @@ df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
 df = df.sort_values(by="A.I. Rating", ascending=False)
 
 st.success(f"Showing projected starters with real metrics for {len(df)} players on {today}.")
-st.dataframe(df.style.background_gradient(cmap="YlGn"))
+
+# Add filtering controls
+teams = df['Team'].dropna().unique().tolist()
+teams.sort()
+min_rating = st.slider("Minimum A.I. Rating", 0.0, 10.0, 5.0, 0.5)
+selected_teams = st.multiselect("Filter by Team", teams, default=teams)
+
+# Apply filters
+filtered_df = df[(df["A.I. Rating"] >= min_rating) & (df["Team"].isin(selected_teams))]
+
+st.dataframe(filtered_df.style.background_gradient(cmap="YlGn"))
+
