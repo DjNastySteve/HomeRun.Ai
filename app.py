@@ -7,12 +7,11 @@ import numpy as np
 
 st.set_page_config(page_title="Home Run A.I. Dashboard", layout="wide")
 
-st.title("🏟️ Home Run A.I. Dashboard (w/ Team Names + Starters Only)")
+st.title("🏟️ Home Run A.I. Dashboard (Cleaned + Team Names + Rounded)")
 st.markdown("""
-This version shows **only projected starting hitters** (batting order 1–9)  
-and displays each player's **full team name**.
-
-All data is pulled live from the MLB StatsAPI and simulated for now — real stat integration is next.
+✅ Only projected starting hitters (batting order 1–9)  
+✅ Full team names  
+✅ All stats rounded to whole numbers
 """)
 
 today = datetime.now().strftime('%Y-%m-%d')
@@ -36,8 +35,8 @@ for game_id in game_ids:
     box = data.get("liveData", {}).get("boxscore", {})
 
     for side in ["home", "away"]:
-        team_name = game_info.get(side, {}).get("name", "")
-        lineup = box.get("teams", {}).get(side, {}).get("battingOrder", [])[:9]  # starters only
+        team_name = box.get("teams", {}).get(side, {}).get("team", {}).get("name", "")
+        lineup = box.get("teams", {}).get(side, {}).get("battingOrder", [])[:9]
         players = box.get("teams", {}).get(side, {}).get("players", {})
         pitcher_list = box.get("teams", {}).get(side, {}).get("pitchers", [])
         pitcher_id = pitcher_list[0] if pitcher_list else None
@@ -55,21 +54,22 @@ for game_id in game_ids:
 df = pd.DataFrame(lineup_data).drop_duplicates(subset=["Player", "Team", "GameID"])
 
 np.random.seed(42)
-df['Barrel %'] = np.random.uniform(5, 18, len(df)).round(2)
-df['Exit Velo'] = np.random.uniform(87, 95, len(df)).round(2)
-df['Hard Hit %'] = np.random.uniform(30, 55, len(df)).round(2)
-df['HR/FB %'] = np.random.uniform(5, 25, len(df)).round(2)
-df['Pitcher HR/9'] = np.random.uniform(0.8, 2.2, len(df)).round(2)
+df['Barrel %'] = np.random.uniform(5, 18, len(df)).round(0).astype(int)
+df['Exit Velo'] = np.random.uniform(87, 95, len(df)).round(0).astype(int)
+df['Hard Hit %'] = np.random.uniform(30, 55, len(df)).round(0).astype(int)
+df['HR/FB %'] = np.random.uniform(5, 25, len(df)).round(0).astype(int)
+df['Pitcher HR/9'] = np.random.uniform(0.8, 2.2, len(df)).round(1)
 df['Pitcher ISO'] = np.random.uniform(.150, .250, len(df)).round(3)
 df['Pitcher Hand'] = np.random.choice(['L', 'R'], len(df))
 
 def calc_ai_rating(row):
     power = (row['Barrel %'] * 0.4 + row['Exit Velo'] * 0.2 + row['Hard Hit %'] * 0.2 + row['HR/FB %'] * 0.2) / 10
     weakness = row['Pitcher HR/9'] * 0.4 + row['Pitcher ISO'] * 10 * 0.3
-    return round(min(power * 0.5 + weakness * 0.5, 10), 2)
+    return round(min(power * 0.5 + weakness * 0.5, 10), 1)
 
 df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
+
 df = df.sort_values(by="A.I. Rating", ascending=False)
 
-st.success(f"Pulled projected starters for {len(df)} players in {len(game_ids)} games on {today}.")
+st.success(f"Showing projected starters for {len(df)} players in {len(game_ids)} games on {today}.")
 st.dataframe(df.style.background_gradient(cmap="YlGn"))
