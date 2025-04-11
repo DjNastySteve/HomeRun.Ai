@@ -101,6 +101,16 @@ else:
     df["Pitcher ISO"] = df["Pitcher ISO"].fillna(np.random.uniform(0.160, 0.230, len(df))).round(3)
 
 df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
+
+# 🌤 Simulate weather and ballpark HR factors
+df["Ballpark HR Factor"] = np.random.uniform(0.90, 1.20, len(df)).round(2)
+df["Wind Boost"] = np.random.uniform(-0.3, 0.4, len(df)).round(2)
+df["Weather Boost"] = df["Ballpark HR Factor"] * 0.5 + df["Wind Boost"] * 0.5
+
+# Apply weather boost to A.I. Rating
+df["A.I. Rating"] = df["A.I. Rating"] + df["Weather Boost"]
+df["A.I. Rating"] = df["A.I. Rating"].clip(upper=10).round(2)
+
 df = df.sort_values(by="A.I. Rating", ascending=False)
 
 st.success(f"Showing projected starters with real metrics for {len(df)} players on {today}.")
@@ -128,5 +138,7 @@ if handed_matchups_only:
     ]
 
 st.dataframe(filtered_df.style.background_gradient(cmap="YlGn"))
+st.download_button("📥 Download as CSV", filtered_df.to_csv(index=False), "home_run_ai_filtered.csv", "text/csv")
+
 
 
