@@ -6,7 +6,7 @@ from datetime import datetime
 import numpy as np
 
 st.set_page_config(page_title="Home Run A.I. Dashboard", layout="wide")
-st.title("🏟️ Home Run A.I. Dashboard (Leaderboard Edition)")
+st.title("🏟️ Home Run A.I. Dashboard (Leaderboard + Merge Fix)")
 
 today = datetime.now().strftime('%Y-%m-%d')
 
@@ -22,12 +22,11 @@ if not game_ids:
 # Load batter stats
 stat_url = "https://raw.githubusercontent.com/DjNastySteve/HomeRun.Ai/main/statcast_2024.csv"
 stat_df = pd.read_csv(stat_url)
-stat_df["player_name_clean"] = stat_df["last_name, first_name"].apply(lambda x: f"{x.split(', ')[1]} {x.split(', ')[0]}")
+stat_df["Player"] = stat_df["last_name, first_name"].apply(lambda x: f"{x.split(', ')[1]} {x.split(', ')[0]}")
 batter_metrics = stat_df[[
-    "player_name_clean", "barrel_batted_rate", "avg_best_speed", "hard_hit_percent"
+    "Player", "barrel_batted_rate", "avg_best_speed", "hard_hit_percent"
 ]].copy()
 batter_metrics.rename(columns={
-    "player_name_clean": "Player",
     "barrel_batted_rate": "Barrel %",
     "avg_best_speed": "Exit Velo",
     "hard_hit_percent": "Hard Hit %"
@@ -68,7 +67,6 @@ df["Exit Velo"] = df["Exit Velo"].where(df["Exit Velo"].notna(), np.random.randi
 df["Hard Hit %"] = df["Hard Hit %"].where(df["Hard Hit %"].notna(), np.random.randint(30, 55, len(df)))
 df["HR/FB %"] = np.random.randint(5, 25, len(df))
 
-# Pull pitcher stats
 pitcher_stats = {}
 for pid in df["PitcherID"].dropna().unique():
     try:
@@ -94,19 +92,15 @@ for pid in df["PitcherID"].dropna().unique():
         pitcher_stats[pid] = {"HR/9": None, "Handedness": "R"}
 
 df["Pitcher HR/9"] = df["PitcherID"].apply(lambda x: pitcher_stats.get(x, {}).get("HR/9", np.random.uniform(0.8, 2.2)))
+df["Pitcher HR/9"] = df["Pitcher HR/9"].where(df["Pitcher HR/9"].notna(), np.random.uniform(0.8, 2.2, len(df)))
 df["Pitcher Hand"] = df["PitcherID"].apply(lambda x: pitcher_stats.get(x, {}).get("Handedness", "R"))
-
-# Batter handedness (simulated)
 df["Batter Hand"] = np.random.choice(["L", "R"], len(df))
 
-# Pitcher ISO + weather boost
 df["Pitcher ISO"] = df["Pitcher Hand"].apply(lambda x: np.random.uniform(0.170, 0.230) if x == "L" else np.random.uniform(0.160, 0.210))
-df["Pitcher HR/9"] = df["Pitcher HR/9"].where(df["Pitcher HR/9"].notna(), np.random.uniform(0.8, 2.2, len(df)))
 df["Ballpark HR Factor"] = np.random.uniform(0.90, 1.20, len(df)).round(2)
 df["Wind Boost"] = np.random.uniform(-0.3, 0.4, len(df)).round(2)
 df["Weather Boost"] = df["Ballpark HR Factor"] * 0.5 + df["Wind Boost"] * 0.5
 
-# A.I. rating
 def calc_ai_rating(row):
     power = (row['Barrel %'] * 0.4 + row['Exit Velo'] * 0.2 + row['Hard Hit %'] * 0.2 + row['HR/FB %'] * 0.2) / 10
     weakness = row['Pitcher HR/9'] * 0.4 + row['Pitcher ISO'] * 10 * 0.3
@@ -116,7 +110,6 @@ df["A.I. Rating"] = df.apply(calc_ai_rating, axis=1)
 df["A.I. Rating"] = df["A.I. Rating"] + df["Weather Boost"]
 df["A.I. Rating"] = df["A.I. Rating"].clip(upper=10).round(2)
 
-# Filters
 teams = df['Team'].dropna().unique().tolist()
 teams.sort()
 min_rating = st.slider("Minimum A.I. Rating", 0.0, 10.0, 5.0, 0.5)
@@ -131,13 +124,12 @@ if handed_matchups_only:
 
 filtered_df = df[(df["A.I. Rating"] >= min_rating) & (df["Team"].isin(selected_teams))]
 
-# 🥇 Top 5 leaderboard
+# Top 5 leaderboard
 st.subheader("🔥 Top 5 Projected Home Run Picks")
 top5 = filtered_df.sort_values(by="A.I. Rating", ascending=False).head(5)[[
     "Player", "Team", "A.I. Rating", "Barrel %", "Exit Velo", "Weather Boost"
 ]]
 st.table(top5.reset_index(drop=True))
 
-# Final results
 st.dataframe(filtered_df.style.background_gradient(cmap="YlGn"))
 st.download_button("📥 Download as CSV", filtered_df.to_csv(index=False), "home_run_ai_filtered.csv", "text/csv")
