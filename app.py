@@ -65,6 +65,9 @@ for game_id in game_ids:
             })
 
 df = pd.DataFrame(lineup_data).drop_duplicates(subset=["Player", "Team", "GameID"])
+if df.empty:
+    st.error("❌ No player lineup data was retrieved. Check game feed or if any games have started.")
+    st.stop()
 
 # Debug logs before merge
 st.write("⚠️ df columns before merge:", df.columns.tolist())
