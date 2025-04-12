@@ -25,6 +25,34 @@ simulate = st.checkbox("🧪 Simulate Lineups (Dev Mode)")
 today = datetime.now().strftime('%Y-%m-%d')
 lineup_data = []
 
+if not simulate:
+    st.info("🔄 Checking for MLB lineup feed...")
+
+# Check feed availability and notify if found
+live_feed_detected = False
+if not simulate:
+    games_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
+    games_data = requests.get(games_url).json()
+    game_ids = [game['gamePk'] for date in games_data['dates'] for game in date['games']]
+    for game_id in game_ids:
+        feed_url = f"https://statsapi.mlb.com/api/v1.1/game/{game_id}/feed/live"
+        r = requests.get(feed_url)
+        if r.status_code != 200:
+            continue
+        data = r.json()
+        box = data.get("liveData", {}).get("boxscore", {})
+        for side in ["home", "away"]:
+            lineup = box.get("teams", {}).get(side, {}).get("battingOrder", [])
+            if lineup:
+                live_feed_detected = True
+                break
+        if live_feed_detected:
+            break
+    if live_feed_detected:
+        st.success("✅ Live MLB lineups are now available — loading real data...")
+    else:
+        st.warning("❌ No live MLB lineups found. You can turn on Dev Mode to simulate data.")
+
 if simulate:
     lineup_data = [{"Player": "Mookie Betts", "Team": "Dodgers", "GameID": 9999, "PitcherID": "P100"},{"Player": "Aaron Judge", "Team": "Yankees", "GameID": 9999, "PitcherID": "P101"},{"Player": "Juan Soto", "Team": "Padres", "GameID": 9999, "PitcherID": "P102"},{"Player": "Shohei Ohtani", "Team": "Angels", "GameID": 9999, "PitcherID": "P103"},{"Player": "Ronald Acuña Jr.", "Team": "Braves", "GameID": 9999, "PitcherID": "P104"}]
 else:
