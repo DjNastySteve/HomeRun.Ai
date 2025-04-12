@@ -11,7 +11,6 @@ st.markdown("#### 📅 Date: " + datetime.now().strftime('%A, %B %d, %Y'))
 
 tabs = st.sidebar.radio("📊 Choose a sport", ["⚾ MLB", "🏈 NFL", "🏀 NBA", "⚽ Soccer", "🏒 NHL", "🏇 Horses"])
 
-# MLB - fully functional Home Run A.I.
 if tabs == "⚾ MLB":
     st.header("⚾ Home Run A.I.")
     simulate = st.checkbox("🧪 Simulate Lineups (Dev Mode)")
@@ -67,27 +66,67 @@ if tabs == "⚾ MLB":
 
     st.download_button("📥 Download CSV", df.to_csv(index=False), "mlb_home_run_ai.csv", "text/csv")
 
-# NFL Placeholder
 elif tabs == "🏈 NFL":
-    st.header("🏈 Touchdown Threat Tracker (Coming Soon)")
-    st.info("This module will identify top Anytime TD threats based on red zone usage, matchups, and weather.")
+    st.header("🏈 Touchdown Threat Tracker")
+    simulate = st.checkbox("🧪 Simulate Red Zone Data (Dev Mode)")
 
-# NBA Placeholder
+    if simulate:
+        df = pd.DataFrame({
+            "Player": ["Christian McCaffrey", "Tyreek Hill", "Travis Kelce", "Stefon Diggs", "Austin Ekeler"],
+            "Team": ["49ers", "Dolphins", "Chiefs", "Bills", "Chargers"],
+            "Position": ["RB", "WR", "TE", "WR", "RB"],
+            "Red Zone Touches": np.random.randint(3, 10, 5),
+            "Target Share %": np.random.uniform(18, 34, 5).round(1),
+            "Opp. Red Zone Rank": np.random.randint(1, 32, 5),
+            "Snap %": np.random.uniform(65, 95, 5).round(1),
+            "Weather Impact": np.random.uniform(-0.3, 0.2, 5).round(2)
+        })
+    else:
+        st.warning("Live NFL red zone data not yet connected. Use Dev Mode.")
+        st.stop()
+
+    def calc_td_rating(row):
+        score = (
+            row['Red Zone Touches'] * 0.4 +
+            row['Target Share %'] * 0.2 +
+            (100 - row['Opp. Red Zone Rank']) * 0.2 +
+            row['Snap %'] * 0.1 +
+            row['Weather Impact'] * 10 * 0.1
+        )
+        return round(min(score / 10, 10), 2)
+
+    df["TD Threat Score"] = df.apply(calc_td_rating, axis=1)
+
+    st.subheader("🔥 Top 5 TD Threats")
+    top5 = df.sort_values("TD Threat Score", ascending=False).head(5)
+    for _, row in top5.iterrows():
+        st.markdown(f"**{row['Player']} – {row['Team']} ({row['Position']})**")
+        st.markdown(f"- TD Threat Score: `{row['TD Threat Score']}`")
+        st.markdown(f"- Red Zone Touches: `{row['Red Zone Touches']}`, Target Share: `{row['Target Share %']}%`")
+        st.markdown(f"- Snap %: `{row['Snap %']}%`, Opp. RZ Rank: `{row['Opp. Red Zone Rank']}`")
+        st.code(f"🔥 {row['Player']} ({row['Team']}) | TD Score {row['TD Threat Score']}/10", language="text")
+        st.markdown("---")
+
+    if st.checkbox("📊 Show TD Threat Charts"):
+        fig, ax = plt.subplots()
+        ax.barh(top5["Player"], top5["TD Threat Score"], color="salmon")
+        ax.invert_yaxis()
+        st.pyplot(fig)
+
+    st.download_button("📥 Download CSV", df.to_csv(index=False), "nfl_td_threats.csv", "text/csv")
+
 elif tabs == "🏀 NBA":
     st.header("🏀 Shot-Maker Index (Coming Soon)")
     st.info("Projected scorers, 3PT threats, and matchup impact tools for prop and DFS analysis.")
 
-# Soccer Placeholder
 elif tabs == "⚽ Soccer":
     st.header("⚽ Goal Machine (Coming Soon)")
     st.info("Goal probability forecasts using xG, match tempo, and defensive form.")
 
-# NHL Placeholder
 elif tabs == "🏒 NHL":
     st.header("🏒 Slapshot Surge (Coming Soon)")
     st.info("Shot on Goal + 1st Goal scorer prediction tools based on goalie matchups.")
 
-# Horses Placeholder
 elif tabs == "🏇 Horses":
     st.header("🏇 Track Whisperer (Coming Soon)")
     st.info("Horse + jockey synergy rating, track condition effects, and AI race edge insight.")
