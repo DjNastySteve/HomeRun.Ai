@@ -3,13 +3,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
+from datetime import datetime
 from pybaseball import statcast_batter_daily, cache
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 import time
 
-# ✅ Enable caching to reduce Statcast load time
+# Enable caching to save and reuse statcast requests
 cache.enable()
 
 st.set_page_config(page_title="BetEdge A.I. - MLB + NBA", layout="wide")
@@ -17,38 +17,70 @@ st.title("🎯 BetEdge A.I. – Dual-Sport Live Dashboard")
 
 sport = st.sidebar.radio("Choose Sport", ["⚾ MLB", "🏀 NBA"])
 
+# MLB player list of interest
+player_names = [
+    "Gunnar Henderson", "Brendan Donovan", "Pete Alonso", "Yordan Alvarez",
+    "Francisco Lindor", "Logan O'Hoppe", "Jonathan Aranda",
+    "Michael Harris II", "Rafael Devers", "Marcell Ozuna"
+]
+
 if sport == "⚾ MLB":
     st.header("⚾ Home Run Predictor")
 
-    try:
-        today = datetime.today()
-        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
-        end_date = today.strftime('%Y-%m-%d')
+    today = datetime.now().strftime('%Y-%m-%d')
+    start_date = "2024-03-28"
 
-        # 🌀 Show loading spinner
-        with st.spinner("Loading 7 days of Statcast data... please wait ⏳"):
-            data = statcast_batter_daily(start_dt=start_date, end_dt=end_date)
+    barrel_rates = []
+    avg_velos = []
+    hard_hit_rates = []
+    hr_fb_rates = []
 
-        player_stats = data.groupby("player_name").agg({
-            "launch_speed": "mean",
-            "events": "count"
-        }).reset_index()
+    st.info("This dashboard now loads only key players and uses caching for much faster performance.")
 
-        player_stats = player_stats[player_stats["events"] > 15]
-        player_stats["A.I. Rating"] = player_stats["launch_speed"] / 2
-        top_hitters = player_stats.sort_values("A.I. Rating", ascending=False).head(15)
+    with st.spinner("Loading selected player stats..."):
+        try:
+            statcast_df = statcast_batter_daily(start_dt=start_date, end_dt=today)
 
-        st.dataframe(top_hitters[["player_name", "launch_speed", "A.I. Rating"]])
+            for player_name in player_names:
+                player_stats = statcast_df[statcast_df['player_name'] == player_name]
+                if player_stats.empty:
+                    barrel, velo, hard_hit, hr_fb = 0, 0, 0, 0
+                else:
+                    barrel = player_stats['barrel_rate'].mean()
+                    velo = player_stats['avg_hit_speed'].mean()
+                    hard_hit = player_stats['hard_hit_percent'].mean()
+                    hr_fb = player_stats['hr'].sum() / player_stats['balls_in_play'].sum() * 100 if player_stats['balls_in_play'].sum() > 0 else 0
+                barrel_rates.append(round(barrel, 2))
+                avg_velos.append(round(velo, 2))
+                hard_hit_rates.append(round(hard_hit, 2))
+                hr_fb_rates.append(round(hr_fb, 2))
 
-        st.subheader("Top 10 A.I. Hitters")
-        fig, ax = plt.subplots()
-        ax.barh(top_hitters["player_name"].head(10)[::-1], top_hitters["A.I. Rating"].head(10)[::-1], color='green')
-        ax.set_xlabel("A.I. Rating")
-        ax.set_title("Top 10 HR Hitters")
-        st.pyplot(fig)
+            df = pd.DataFrame({
+                "Player": player_names,
+                "Barrel %": barrel_rates,
+                "Exit Velo": avg_velos,
+                "Hard Hit %": hard_hit_rates,
+                "HR/FB %": hr_fb_rates
+            })
 
-    except Exception as e:
-        st.error(f"MLB Data Load Error: {e}")
+            df["A.I. Rating"] = (
+                df["Barrel %"] * 0.4 +
+                df["Exit Velo"] * 0.2 +
+                df["Hard Hit %"] * 0.2 +
+                df["HR/FB %"] * 0.2
+            ) / 10
+
+            df = df.sort_values(by="A.I. Rating", ascending=False)
+            st.dataframe(df)
+
+            st.subheader("Top A.I. HR Hitters")
+            fig, ax = plt.subplots()
+            ax.barh(df["Player"].head(10)[::-1], df["A.I. Rating"].head(10)[::-1], color='green')
+            ax.set_xlabel("A.I. Rating")
+            st.pyplot(fig)
+
+        except Exception as e:
+            st.error(f"MLB Statcast Load Failed: {e}")
 
 if sport == "🏀 NBA":
     st.header("🏀 Shot-Maker Index")
