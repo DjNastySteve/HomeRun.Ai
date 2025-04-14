@@ -9,7 +9,6 @@ from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 import time
 
-# Enable caching for pybaseball
 cache.enable()
 
 st.set_page_config(page_title="BetEdge A.I. - MLB + NBA", layout="wide")
@@ -22,11 +21,14 @@ if sport == "⚾ MLB":
 
     today = datetime.now().strftime('%Y-%m-%d')
     try:
-        data = statcast(start_dt="2024-03-28", end_dt=today)
+        with st.spinner("Loading MLB Statcast data (last 2 weeks)..."):
+            data = statcast(start_dt="2024-04-01", end_dt=today)
+
         player_stats = data.groupby("player_name").agg({
             "launch_speed": "mean",
             "events": "count"
         }).reset_index()
+
         player_stats = player_stats[player_stats["events"] > 20]
         player_stats["A.I. Rating"] = player_stats["launch_speed"] / 2
         top_hitters = player_stats.sort_values("A.I. Rating", ascending=False).head(15)
