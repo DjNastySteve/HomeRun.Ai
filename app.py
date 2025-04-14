@@ -3,12 +3,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime
-from pybaseball import statcast, cache
+from datetime import datetime, timedelta
+from pybaseball import statcast_batter_daily, cache
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 import time
 
+# ✅ Enable caching to reduce Statcast load time
 cache.enable()
 
 st.set_page_config(page_title="BetEdge A.I. - MLB + NBA", layout="wide")
@@ -19,17 +20,21 @@ sport = st.sidebar.radio("Choose Sport", ["⚾ MLB", "🏀 NBA"])
 if sport == "⚾ MLB":
     st.header("⚾ Home Run Predictor")
 
-    today = datetime.now().strftime('%Y-%m-%d')
     try:
-        with st.spinner("Loading MLB Statcast data (last 2 weeks)..."):
-            data = statcast(start_dt="2024-04-01", end_dt=today)
+        today = datetime.today()
+        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+
+        # 🌀 Show loading spinner
+        with st.spinner("Loading 7 days of Statcast data... please wait ⏳"):
+            data = statcast_batter_daily(start_dt=start_date, end_dt=end_date)
 
         player_stats = data.groupby("player_name").agg({
             "launch_speed": "mean",
             "events": "count"
         }).reset_index()
 
-        player_stats = player_stats[player_stats["events"] > 20]
+        player_stats = player_stats[player_stats["events"] > 15]
         player_stats["A.I. Rating"] = player_stats["launch_speed"] / 2
         top_hitters = player_stats.sort_values("A.I. Rating", ascending=False).head(15)
 
