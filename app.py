@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
-from pybaseball import statcast_batter, playerid_lookup, cache
+from pybaseball import statcast_batter, cache
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 
@@ -15,15 +15,22 @@ st.title("🎯 BetEdge A.I. – Dual-Sport Live Dashboard")
 
 sport = st.sidebar.radio("Choose Sport", ["⚾ MLB", "🏀 NBA"])
 
-# Player list
-player_names = [
-    "Gunnar Henderson", "Brendan Donovan", "Pete Alonso", "Yordan Alvarez",
-    "Francisco Lindor", "Logan O'Hoppe", "Jonathan Aranda",
-    "Michael Harris II", "Rafael Devers", "Marcell Ozuna"
-]
+# Predefined MLBAM player IDs
+player_ids = {
+    "Gunnar Henderson": 683002,
+    "Brendan Donovan": 680777,
+    "Pete Alonso": 624413,
+    "Yordan Alvarez": 670541,
+    "Francisco Lindor": 596019,
+    "Logan O'Hoppe": 681351,
+    "Jonathan Aranda": 660546,
+    "Michael Harris II": 683076,
+    "Rafael Devers": 646240,
+    "Marcell Ozuna": 542303
+}
 
 if sport == "⚾ MLB":
-    st.header("⚾ Home Run Predictor (Fast Mode)")
+    st.header("⚾ Home Run Predictor (Fixed ID Mode)")
 
     today = datetime.now().strftime('%Y-%m-%d')
     start_date = "2024-03-28"
@@ -34,15 +41,10 @@ if sport == "⚾ MLB":
     hr_fb_rates = []
     confirmed_names = []
 
-    with st.spinner("Loading statcast data per player..."):
-        for name in player_names:
+    with st.spinner("Loading data for selected players..."):
+        for name, pid in player_ids.items():
             try:
-                pid_df = playerid_lookup(name.split()[-1], name.split()[0])
-                if pid_df.empty:
-                    continue
-                player_id = pid_df.iloc[0]['key_mlbam']
-                data = statcast_batter(start_dt=start_date, end_dt=today, player_id=player_id)
-
+                data = statcast_batter(start_dt=start_date, end_dt=today, player_id=pid)
                 if data.empty:
                     barrel, velo, hard_hit, hr_fb = 0, 0, 0, 0
                 else:
@@ -58,7 +60,7 @@ if sport == "⚾ MLB":
                 confirmed_names.append(name)
 
             except Exception as e:
-                print(f"Failed for {name}: {e}")
+                print(f"⚠️ Error loading data for {name}: {e}")
 
     if confirmed_names:
         df = pd.DataFrame({
@@ -85,7 +87,7 @@ if sport == "⚾ MLB":
         ax.set_xlabel("A.I. Rating")
         st.pyplot(fig)
     else:
-        st.warning("No player data found.")
+        st.warning("No player data was found.")
 
 if sport == "🏀 NBA":
     st.header("🏀 Shot-Maker Index")
