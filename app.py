@@ -6,19 +6,16 @@ import matplotlib.pyplot as plt
 import requests
 from datetime import datetime
 from pybaseball import batting_stats
-from pybaseball.lahman import people
 
 st.set_page_config(page_title="Home Run A.I. - PyBaseball Optimized", layout="wide")
-st.title("🏟️ Home Run A.I. (LIVE - Fast + Real Stats)")
-st.markdown("Now using pybaseball to batch load stats for faster speed and reliability.")
+st.title("🏟️ Home Run A.I. (LIVE - Fast + Real Stats, Fixed)")
+st.markdown("Now using pybaseball to batch load stats for faster speed and reliability — Lahman dependency removed.")
 
 @st.cache_data
 def load_stat_data(year=2024):
-    return batting_stats(year)
-
-@st.cache_data
-def load_people_data():
-    return people()
+    df = batting_stats(year)
+    df['player_name'] = df['Name'].str.lower()
+    return df
 
 def get_todays_games():
     today = datetime.now().strftime("%Y-%m-%d")
@@ -50,14 +47,8 @@ def get_starting_hitters(game_pk):
                     hitters.append((name, team))
     return hitters
 
-# Load player stats
+# Load stats and games
 batting_df = load_stat_data()
-people_df = load_people_data()
-
-# Normalize and map names
-batting_df['player_name'] = batting_df['Name'].str.lower()
-people_df['full_name'] = (people_df['nameFirst'] + ' ' + people_df['nameLast']).str.lower()
-
 name_to_stats = dict(zip(batting_df['player_name'], batting_df.to_dict('records')))
 games_df = get_todays_games()
 
@@ -94,7 +85,7 @@ else:
 
     if all_hitters:
         df = pd.DataFrame(all_hitters).sort_values(by="A.I. Rating", ascending=False)
-        st.subheader("🎯 A.I. Picks (Fast Real Stats)")
+        st.subheader("🎯 A.I. Picks (Real Stats + Fast Load)")
         st.dataframe(df)
 
         st.subheader("🔝 Top 10 A.I. Picks")
