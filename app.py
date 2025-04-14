@@ -3,43 +3,73 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import requests
 from datetime import datetime
 
-# Replace with your real GitHub raw CSV URL
-CSV_URL = "https://raw.githubusercontent.com/your_username/your_repo/main/today_data.csv"
+st.set_page_config(page_title="Home Run A.I. - Free & Live", layout="wide")
+st.title("🏟️ Home Run A.I. (LIVE - StatsAPI)")
+st.markdown("Fully automated, powered by free MLB StatsAPI + simulated metrics")
 
-st.set_page_config(page_title="Home Run A.I. - Live", layout="wide")
-st.title("🏟️ Home Run A.I. Dashboard (LIVE)")
-st.markdown("Powered by free GitHub automation and same-day data.")
+def get_todays_games():
+    today = datetime.now().strftime("%Y-%m-%d")
+    url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={today}"
+    res = requests.get(url).json()
+    games = []
+    for date in res.get("dates", []):
+        for game in date.get("games", []):
+            home = game["teams"]["home"]["team"]["name"]
+            away = game["teams"]["away"]["team"]["name"]
+            game_time = game.get("gameDate", "")[11:16]
+            games.append({"Home": home, "Away": away, "Time": game_time})
+    return pd.DataFrame(games)
 
-try:
-    df = pd.read_csv(CSV_URL)
+def simulate_power_metrics(player):
+    # Simulate statcast-style power data for demo purposes
+    return {
+        "Barrel %": np.random.uniform(8, 18),
+        "Exit Velo": np.random.uniform(86, 94),
+        "Hard Hit %": np.random.uniform(30, 50),
+        "HR/FB %": np.random.uniform(10, 22)
+    }
 
-    # Optional rounding
-    for col in ["Barrel %", "Exit Velo", "Hard Hit %", "HR/FB %"]:
-        if col in df.columns:
-            df[col] = df[col].round(2)
+# Load games
+games_df = get_todays_games()
 
-    # A.I. Rating formula
-    df["A.I. Rating"] = (
-        df["Barrel %"] * 0.4 +
-        df["Exit Velo"] * 0.2 +
-        df["Hard Hit %"] * 0.2 +
-        df["HR/FB %"] * 0.2
-    ) / 10
-    df["A.I. Rating"] = df["A.I. Rating"].round(2)
-    df = df.sort_values(by="A.I. Rating", ascending=False)
+if games_df.empty:
+    st.warning("No MLB games found for today.")
+else:
+    st.success(f"Games found: {len(games_df)}")
+    st.dataframe(games_df)
 
-    st.success(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}")
+    # Simulate top HR candidates per game
+    st.subheader("📊 Simulated A.I. Home Run Picks")
+    simulated_data = []
+
+    for _, row in games_df.iterrows():
+        for team in [row["Home"], row["Away"]]:
+            # Create 1 random slugger per team
+            player_name = f"{team} Slugger"
+            metrics = simulate_power_metrics(player_name)
+            ai_rating = (
+                metrics["Barrel %"] * 0.4 +
+                metrics["Exit Velo"] * 0.2 +
+                metrics["Hard Hit %"] * 0.2 +
+                metrics["HR/FB %"] * 0.2
+            ) / 10
+            simulated_data.append({
+                "Player": player_name,
+                "Team": team,
+                "GameTime": row["Time"],
+                **metrics,
+                "A.I. Rating": round(ai_rating, 2)
+            })
+
+    df = pd.DataFrame(simulated_data).sort_values(by="A.I. Rating", ascending=False)
     st.dataframe(df)
 
-    st.subheader("🔝 Top A.I. Rated Players")
+    # Bar chart
+    st.subheader("🔥 Top A.I. Rated HR Picks")
     fig, ax = plt.subplots()
     ax.barh(df["Player"].head(10)[::-1], df["A.I. Rating"].head(10)[::-1], color='green')
     ax.set_xlabel("A.I. Rating")
-    ax.set_title("Top 10 Projected HR Hitters")
     st.pyplot(fig)
-
-except Exception as e:
-    st.error("❌ Failed to load data from GitHub. Make sure your CSV link is correct.")
-    st.exception(e)
