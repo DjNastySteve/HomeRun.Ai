@@ -4,12 +4,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
-from pybaseball import statcast_batter_daily, cache
+from pybaseball import statcast, cache
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 import time
 
-# Enable caching to save and reuse statcast requests
 cache.enable()
 
 st.set_page_config(page_title="BetEdge A.I. - MLB + NBA", layout="wide")
@@ -17,7 +16,7 @@ st.title("🎯 BetEdge A.I. – Dual-Sport Live Dashboard")
 
 sport = st.sidebar.radio("Choose Sport", ["⚾ MLB", "🏀 NBA"])
 
-# MLB player list of interest
+# Only pull stats for selected players
 player_names = [
     "Gunnar Henderson", "Brendan Donovan", "Pete Alonso", "Yordan Alvarez",
     "Francisco Lindor", "Logan O'Hoppe", "Jonathan Aranda",
@@ -35,11 +34,11 @@ if sport == "⚾ MLB":
     hard_hit_rates = []
     hr_fb_rates = []
 
-    st.info("This dashboard now loads only key players and uses caching for much faster performance.")
+    st.info("Statcast now using pybaseball.statcast with filtered players and caching.")
 
-    with st.spinner("Loading selected player stats..."):
+    with st.spinner("Loading player stats... please wait ⏳"):
         try:
-            statcast_df = statcast_batter_daily(start_dt=start_date, end_dt=today)
+            statcast_df = statcast(start_dt=start_date, end_dt=today)
 
             for player_name in player_names:
                 player_stats = statcast_df[statcast_df['player_name'] == player_name]
@@ -47,7 +46,7 @@ if sport == "⚾ MLB":
                     barrel, velo, hard_hit, hr_fb = 0, 0, 0, 0
                 else:
                     barrel = player_stats['barrel_rate'].mean()
-                    velo = player_stats['avg_hit_speed'].mean()
+                    velo = player_stats['launch_speed'].mean()
                     hard_hit = player_stats['hard_hit_percent'].mean()
                     hr_fb = player_stats['hr'].sum() / player_stats['balls_in_play'].sum() * 100 if player_stats['balls_in_play'].sum() > 0 else 0
                 barrel_rates.append(round(barrel, 2))
@@ -80,7 +79,7 @@ if sport == "⚾ MLB":
             st.pyplot(fig)
 
         except Exception as e:
-            st.error(f"MLB Statcast Load Failed: {e}")
+            st.error(f"Statcast Load Error: {e}")
 
 if sport == "🏀 NBA":
     st.header("🏀 Shot-Maker Index")
