@@ -4,10 +4,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
-from pybaseball import statcast
+from pybaseball import statcast, cache
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 import time
+
+# Enable caching for pybaseball
+cache.enable()
 
 st.set_page_config(page_title="BetEdge A.I. - MLB + NBA", layout="wide")
 st.title("🎯 BetEdge A.I. – Dual-Sport Live Dashboard")
