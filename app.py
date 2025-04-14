@@ -14,7 +14,6 @@ st.title("🎯 BetEdge A.I. – Dual-Sport Live Dashboard")
 
 sport = st.sidebar.radio("Choose Sport", ["⚾ MLB", "🏀 NBA"])
 
-# MLB MODULE
 if sport == "⚾ MLB":
     st.header("⚾ Home Run Predictor")
 
@@ -41,7 +40,6 @@ if sport == "⚾ MLB":
     except Exception as e:
         st.error(f"MLB Data Load Error: {e}")
 
-# NBA MODULE
 if sport == "🏀 NBA":
     st.header("🏀 Shot-Maker Index")
 
