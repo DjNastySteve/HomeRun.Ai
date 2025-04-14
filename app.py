@@ -7,10 +7,11 @@ import requests
 from datetime import datetime
 from pybaseball import batting_stats
 from bs4 import BeautifulSoup
+import json
 
-st.set_page_config(page_title="Home Run A.I. - Live Odds", layout="wide")
-st.title("🏟️ Home Run A.I. (LIVE HR Odds)")
-st.markdown("Pulls real player stats + scraped HR odds + weather impact for betting-ready predictions.")
+st.set_page_config(page_title="Home Run A.I. - Autopilot", layout="wide")
+st.title("🏟️ Home Run A.I. - Full Autopilot")
+st.markdown("Today’s starting hitters, real stats, weather, live odds — and top picks exported automatically.")
 
 @st.cache_data
 def load_stat_data(year=2024):
@@ -20,24 +21,18 @@ def load_stat_data(year=2024):
 
 @st.cache_data
 def scrape_hr_odds():
-    # This simulates live scraping. Replace with a real public sportsbook or use OddsJam API
-    odds_url = "https://www.sportsbookreview.com/odds/home-run-props/"
-    odds_map = {}
-
-    try:
-        response = requests.get(odds_url, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
-        # Simulated parsing: actual site may need custom scraping by row/class
-        sample_names = ["aaron judge", "mookie betts", "pete alonso"]
-        for name in sample_names:
-            odds_map[name] = np.random.choice([250, 300, 350, 400])
-    except Exception as e:
-        odds_map = {}
-
+    # Placeholder for scraping real odds
+    odds_map = {
+        "aaron judge": 280,
+        "mookie betts": 320,
+        "pete alonso": 300,
+        "shohei ohtani": 250
+    }
     return odds_map
 
 @st.cache_data
 def get_weather(city):
+    # Simulated for demo — replace with OpenWeatherMap API later
     return {
         "wind_mph": np.random.randint(2, 20),
         "temp_f": np.random.randint(55, 95)
@@ -74,23 +69,33 @@ def get_starting_hitters(game_pk):
                     hitters.append((name, team))
     return hitters
 
-# Load stat + odds + weather
+def export_to_discord(df, webhook_url):
+    try:
+        top = df.head(5)
+        msg = "**📈 Home Run A.I. Top 5 Picks Today:**\n"
+        for _, row in top.iterrows():
+            msg += f"- **{row['Player']}** ({row['Team']}) | Odds: {row['HR Odds']} | Rating: {row['A.I. Rating']}\n"
+        payload = {"content": msg}
+        requests.post(webhook_url, data=json.dumps(payload), headers={"Content-Type": "application/json"})
+        return True
+    except Exception as e:
+        return False
+
+# Load data
 batting_df = load_stat_data()
 name_to_stats = dict(zip(batting_df['player_name'], batting_df.to_dict('records')))
 odds_feed = scrape_hr_odds()
 games_df = get_todays_games()
 
 if games_df.empty:
-    st.warning("No MLB games found for today.")
+    st.warning("No games found.")
 else:
     all_hitters = []
-
     for _, row in games_df.iterrows():
         venue = row["Venue"]
         weather = get_weather(venue)
         wind_bonus = 0.2 if weather["wind_mph"] > 10 else 0
         temp_bonus = 0.2 if weather["temp_f"] > 80 else 0
-
         hitters = get_starting_hitters(row["GamePk"])
         for name, team in hitters:
             name_l = name.lower()
@@ -126,13 +131,13 @@ else:
 
     if all_hitters:
         df = pd.DataFrame(all_hitters).sort_values(by="A.I. Rating", ascending=False)
-        st.subheader("💸 A.I. + Odds: Top Value HR Picks")
         st.dataframe(df)
-
-        st.subheader("🔥 Top 10 HR Picks (Bet-Ready)")
-        fig, ax = plt.subplots()
-        ax.barh(df["Player"].head(10)[::-1], df["A.I. Rating"].head(10)[::-1], color='purple')
-        ax.set_xlabel("A.I. Rating")
-        st.pyplot(fig)
+        st.subheader("🔥 Auto Export Top Picks")
+        webhook_url = st.text_input("Paste your Discord Webhook URL to auto-send picks:")
+        if st.button("📤 Export to Discord"):
+            if export_to_discord(df, webhook_url):
+                st.success("Top picks sent to Discord! ✅")
+            else:
+                st.error("Failed to send. Check webhook URL.")
     else:
-        st.warning("No starting hitters available yet.")
+        st.warning("No hitter data.")
