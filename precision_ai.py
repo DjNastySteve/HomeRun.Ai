@@ -3,10 +3,9 @@ import pandas as pd
 import numpy as np
 import requests
 from datetime import datetime
-from pybaseball import statcast_batter
+from pybaseball import statcast
 import json
 
-# Set your free OpenWeatherMap API key here
 OWM_API_KEY = "your_openweather_api_key"
 WEBHOOK_URL = "https://discord.com/api/webhooks/1361483435960438800/0ozeGsJ91aVdUUMuwwL8Cw1RMPU584liQCRx4ocRREIPVlGYLbGeG8rQcBN22mG-6QLl"
 
@@ -25,15 +24,16 @@ def get_weather(city):
 def get_statcast(start="2024-03-28", end=None):
     if not end:
         end = datetime.now().strftime("%Y-%m-%d")
-    data = statcast_batter(start_dt=start, end_dt=end)
+    data = statcast(start_dt=start, end_dt=end)
     return data
 
 def aggregate_player_metrics(statcast_df):
+    statcast_df = statcast_df[statcast_df["launch_speed"].notna()]
     grouped = statcast_df.groupby("player_name")
     metrics = grouped.agg({
         "launch_speed": "mean",
-        "barrel": "sum",
-        "events": "count"
+        "events": "count",
+        "barrel": "sum" if "barrel" in statcast_df.columns else lambda x: 0
     }).reset_index()
     metrics["Barrel %"] = (metrics["barrel"] / metrics["events"]) * 100
     metrics["Exit Velo"] = metrics["launch_speed"]
@@ -41,9 +41,9 @@ def aggregate_player_metrics(statcast_df):
 
 def simulate_game_data():
     return [
-        {"Player": "Aaron Judge", "Team": "NYY", "Opponent": "BOS", "Venue": "Yankee Stadium"},
-        {"Player": "Shohei Ohtani", "Team": "LAD", "Opponent": "SD", "Venue": "Dodger Stadium"},
-        {"Player": "Pete Alonso", "Team": "NYM", "Opponent": "PHI", "Venue": "Citi Field"},
+        {"Player": "Aaron Judge", "Team": "NYY", "Opponent": "BOS", "Venue": "New York"},
+        {"Player": "Shohei Ohtani", "Team": "LAD", "Opponent": "SD", "Venue": "Los Angeles"},
+        {"Player": "Pete Alonso", "Team": "NYM", "Opponent": "PHI", "Venue": "New York"},
     ]
 
 def post_to_discord(df):
