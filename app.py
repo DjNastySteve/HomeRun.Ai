@@ -74,7 +74,7 @@ def get_hitters(game_pk):
 
 def run_app():
     st.set_page_config(layout="wide")
-    st.title("🏟️ Home Run A.I. - DraftKings Odds Edition")
+    st.title("🏟️ Home Run A.I. - DraftKings Odds Edition (Fixed)")
 
     st.markdown("### Today's Top A.I. Home Run Picks")
     batting = batting_stats(2024)
@@ -90,9 +90,9 @@ def run_app():
         hitters = get_hitters(game["GamePk"])
 
         for name, team in hitters:
-            name_clean = name.lower().strip()
-            stats = batting[batting["player_name"] == name_clean]
-            odds = odds_map.get(name_clean)
+            name_l = name.lower().strip()
+            stats = batting[batting["player_name"] == name_l]
+            odds = odds_map.get(name_l, None)
 
             if not stats.empty:
                 ab = stats["AB"].values[0]
@@ -110,21 +110,26 @@ def run_app():
                     "Venue": game["Venue"],
                     "Temp (F)": weather["temp"],
                     "Wind (mph)": weather["wind"],
-                    "Odds": odds if odds else "-",
+                    "HR Odds": odds,
                     "Barrel %": round(barrel, 2),
                     "Exit Velo": round(velo, 2),
                     "A.I. Rating": round(ai, 2)
                 })
 
     df = pd.DataFrame(final)
+
+    # Fix: ensure HR Odds column is numeric and drop rows with missing data
+    df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors="coerce")
+    df = df.dropna(subset=["HR Odds"])
     df = df.sort_values("A.I. Rating", ascending=False)
+
     st.dataframe(df)
 
     if not df.empty and "Player" in df.columns:
         st.subheader("🔝 Top 10 Projected Home Run Hitters")
         st.bar_chart(df.head(10).set_index("Player")["A.I. Rating"])
     else:
-        st.warning("Top 10 chart could not render – missing 'Player' column or data.")
+        st.warning("Top 10 chart could not render – missing or invalid 'Player' or 'A.I. Rating' data.")
 
 if __name__ == "__main__":
     run_app()
