@@ -24,12 +24,9 @@ def get_weather(city):
 
 def scrape_dk_home_run_odds():
     url = "https://sportsbook.draftkings.com/leagues/baseball/mlb"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
-    
     odds_map = {}
     for tag in soup.find_all("span", string=re.compile(r"\+\d{2,4}")):
         parent = tag.find_parent()
@@ -93,9 +90,9 @@ def run_app():
         hitters = get_hitters(game["GamePk"])
 
         for name, team in hitters:
-            name_l = name.lower()
-            stats = batting[batting["player_name"] == name_l]
-            odds = odds_map.get(name_l)
+            name_clean = name.lower().strip()
+            stats = batting[batting["player_name"] == name_clean]
+            odds = odds_map.get(name_clean)
 
             if not stats.empty:
                 ab = stats["AB"].values[0]
@@ -110,7 +107,6 @@ def run_app():
                 final.append({
                     "Player": name,
                     "Team": team,
-                    "City": game["City"],
                     "Venue": game["Venue"],
                     "Temp (F)": weather["temp"],
                     "Wind (mph)": weather["wind"],
@@ -120,11 +116,15 @@ def run_app():
                     "A.I. Rating": round(ai, 2)
                 })
 
-    df = pd.DataFrame(final).sort_values("A.I. Rating", ascending=False)
+    df = pd.DataFrame(final)
+    df = df.sort_values("A.I. Rating", ascending=False)
     st.dataframe(df)
 
-    st.subheader("🔝 Top 10 Projected Home Run Hitters")
-    st.bar_chart(df.head(10).set_index("Player")["A.I. Rating"])
+    if not df.empty and "Player" in df.columns:
+        st.subheader("🔝 Top 10 Projected Home Run Hitters")
+        st.bar_chart(df.head(10).set_index("Player")["A.I. Rating"])
+    else:
+        st.warning("Top 10 chart could not render – missing 'Player' column or data.")
 
 if __name__ == "__main__":
     run_app()
