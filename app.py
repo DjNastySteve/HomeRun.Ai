@@ -118,8 +118,8 @@ def run_app():
 
     df = pd.DataFrame(final)
 
-    # 🚨 Critical fix to clean HR Odds column
-    df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors='coerce')
+    # 🧼 Clean and convert HR Odds column
+    df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors="coerce")
     df["HR Odds"].fillna(1000, inplace=True)
 
     df = df.sort_values("A.I. Rating", ascending=False)
