@@ -5,16 +5,10 @@ import numpy as np
 import requests
 from datetime import datetime
 from pybaseball import batting_stats
+from bs4 import BeautifulSoup
+import re
 
 OWM_API_KEY = "your_openweather_api_key_here"
-
-def scrape_hr_odds():
-    return {
-        "shohei ohtani": 250,
-        "mookie betts": 320,
-        "freddie freeman": 330,
-        "max muncy": 350
-    }
 
 def get_weather(city):
     try:
@@ -27,6 +21,28 @@ def get_weather(city):
         }
     except:
         return {"temp": 72, "wind": 5, "condition": "Clear"}
+
+def scrape_dk_home_run_odds():
+    url = "https://sportsbook.draftkings.com/leagues/baseball/mlb"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    odds_map = {}
+    for tag in soup.find_all("span", string=re.compile(r"\+\d{2,4}")):
+        parent = tag.find_parent()
+        if parent:
+            player_info = parent.find_previous("span")
+            if player_info:
+                name = player_info.text.strip().lower()
+                try:
+                    odds = int(tag.text.strip().replace("+", ""))
+                    odds_map[name] = odds
+                except:
+                    continue
+    return odds_map
 
 def get_todays_games():
     today = datetime.now().strftime("%Y-%m-%d")
@@ -61,12 +77,12 @@ def get_hitters(game_pk):
 
 def run_app():
     st.set_page_config(layout="wide")
-    st.title("🏟️ Home Run A.I. - Odds & Weather Edition")
+    st.title("🏟️ Home Run A.I. - DraftKings Odds Edition")
 
     st.markdown("### Today's Top A.I. Home Run Picks")
     batting = batting_stats(2024)
     batting["player_name"] = batting["Name"].str.lower()
-    odds_map = scrape_hr_odds()
+    odds_map = scrape_dk_home_run_odds()
     games = get_todays_games()
     final = []
 
