@@ -118,9 +118,9 @@ def run_app():
 
     df = pd.DataFrame(final)
 
-    # 💡 Convert odds to numeric and handle missing values
-    df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors="coerce")
-    df.dropna(subset=["HR Odds"], inplace=True)
+    # 🚨 Critical fix to clean HR Odds column
+    df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors='coerce')
+    df["HR Odds"].fillna(1000, inplace=True)
 
     df = df.sort_values("A.I. Rating", ascending=False)
     st.dataframe(df)
