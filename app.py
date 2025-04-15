@@ -118,9 +118,9 @@ def run_app():
 
     df = pd.DataFrame(final)
 
-    # 🧼 Clean and convert HR Odds column
+    # 💡 Validate and convert odds to numeric
     df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors="coerce")
-    df["HR Odds"].fillna(1000, inplace=True)
+    df = df.dropna(subset=["HR Odds"])
 
     df = df.sort_values("A.I. Rating", ascending=False)
     st.dataframe(df)
@@ -129,7 +129,7 @@ def run_app():
         st.subheader("🔝 Top 10 Projected Home Run Hitters")
         st.bar_chart(df.head(10).set_index("Player")["A.I. Rating"])
     else:
-        st.warning("Top 10 chart could not render – missing data.")
+        st.warning("Top 10 chart could not render – missing valid odds or A.I. scores.")
 
 if __name__ == "__main__":
     run_app()
