@@ -74,7 +74,7 @@ def get_hitters(game_pk):
 
 def run_app():
     st.set_page_config(layout="wide")
-    st.title("🏟️ Home Run A.I. - DraftKings Odds Edition (Fixed)")
+    st.title("🏟️ Home Run A.I. - DraftKings Odds Edition")
 
     st.markdown("### Today's Top A.I. Home Run Picks")
     batting = batting_stats(2024)
@@ -92,7 +92,7 @@ def run_app():
         for name, team in hitters:
             name_l = name.lower().strip()
             stats = batting[batting["player_name"] == name_l]
-            odds = odds_map.get(name_l, None)
+            odds = odds_map.get(name_l, np.nan)
 
             if not stats.empty:
                 ab = stats["AB"].values[0]
@@ -101,7 +101,7 @@ def run_app():
                 hr_fb = (hr / ab) * 100 if ab > 0 else 0
                 barrel = np.random.uniform(10, 16)
                 velo = np.random.uniform(88, 94)
-                odds_bonus = 0.25 if odds and odds < 350 else 0
+                odds_bonus = 0.25 if pd.notna(odds) and odds < 350 else 0
                 ai = (barrel * 0.4 + velo * 0.2 + hard_hit * 0.2 + hr_fb * 0.2) / 10 + wind_bonus + temp_bonus + odds_bonus
 
                 final.append({
@@ -118,18 +118,18 @@ def run_app():
 
     df = pd.DataFrame(final)
 
-    # Fix: ensure HR Odds column is numeric and drop rows with missing data
+    # 💡 Convert odds to numeric and handle missing values
     df["HR Odds"] = pd.to_numeric(df["HR Odds"], errors="coerce")
-    df = df.dropna(subset=["HR Odds"])
-    df = df.sort_values("A.I. Rating", ascending=False)
+    df.dropna(subset=["HR Odds"], inplace=True)
 
+    df = df.sort_values("A.I. Rating", ascending=False)
     st.dataframe(df)
 
     if not df.empty and "Player" in df.columns:
         st.subheader("🔝 Top 10 Projected Home Run Hitters")
         st.bar_chart(df.head(10).set_index("Player")["A.I. Rating"])
     else:
-        st.warning("Top 10 chart could not render – missing or invalid 'Player' or 'A.I. Rating' data.")
+        st.warning("Top 10 chart could not render – missing data.")
 
 if __name__ == "__main__":
     run_app()
